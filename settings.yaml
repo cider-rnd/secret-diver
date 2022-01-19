@@ -1,0 +1,167 @@
+Meta:
+  version: "0.0.1"
+
+Ignore:
+  - /usr/local/lib/python.*
+  - /usr/lib/python.*
+  - /usr/share/.*
+  - .*\.pyc
+  - .*/node_modules/aws-sdk/.*
+
+FalsePositive:
+  - 'user:pass'
+  - '(?i)\$\([^)]*PASS[^)]*\)'
+  - '(?i)\$\{[^}]*PASS[^}]*'
+
+Signatures:
+  -
+    match: '(?i)(([^A-Z0-9]|^)(AKIA|A3T|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{12,})'
+    name: 'AWS Access Key'
+    description: 'Contains AWS Access Key ID'
+    signatureid: '1-AWS'
+    enable: 1
+    severity: 1
+  -
+    match: '(?msi)-----BEGIN [A-Z ]*PRIVATE KEY[^-]*-----'
+    description: 'Contains a private key'
+    signatureid: '2-PRIVATE'
+    enable: 1
+    severity: 10
+  -
+    match: '(?i)(\bhooks.slack.com/services)(.{0,64})'
+    description: 'looks like a slack token'
+    signatureid: '3-SLACK'
+    enable: 1
+  -
+    part: PartContent
+    match: '(?i)password[ \t]{0,64}[\=\:\?](.{0,64}?[^\r\n].{0,32})'
+    description: 'Looks like a password'
+    signatureid: '6-PASSWORD'
+    enable: 0
+  -
+    part: PartContent
+    match: '(?i)password:(.{0,64}?[^\r\n].{0,32})'
+    description: 'Looks like an Artifactory password'
+    signatureid: '7-ARTIFACTORY-PASSWORD'
+    enable: 0
+  -
+    part: PartContent
+    match: '(?i)nexuspassword[ \t]{0,64}[\=\:\?](.{0,64}?[^\r\n].{0,32})'
+    description: 'Looks like a Nexus password'
+    signatureid: '8-ARTIFACTORY-PASSWORD'
+    enable: 1
+  -
+    part: PartContent
+    match: '(?i)pass[ \t]{0,64}[\=\:\?](.{0,64}?[^\r\n].{0,32})'
+    description: 'Looks like a password'
+    signatureid: '9-PASS'
+    enable: 0
+  -
+    part: PartContent
+    match: '(?i)pwd[ \t]{0,64}[\=\:\?](.{0,64}?[^\r\n].{0,32})'
+    description: 'Looks like a password'
+    signatureid: '10-PASS'
+    enable: 0
+  -
+    part: PartContent
+    match: '(?i)passwd[ \t]{0,64}[\=\:\?](.{0,64}?[^\r\n].{0,32})'
+    description: 'Looks like a password'
+    signatureid: '11-PASS'
+    enable: 0
+  -
+    part: PartContent
+    match: '(?i)(cred[ \t]{0,64}[\=\:\?].{0,64}?[^\r\n].{0,32})'
+    description: 'Looks like a password'
+    signatureid: '12-CRED'
+    enable: 0
+  -
+    part: PartContent
+    match: '(?i)secret.*?key[ \t]{0,64}[\=\:\?](.{0,64}?[^\r\n].{0,32})'
+    description: 'Looks like a secret key'
+    signatureid: '13-SECRET'
+    enable: 0
+  -
+    part: PartContent
+    match: '(?i)(consumer|customer).*?(key|secret)[ \t]{0,64}[\=\:\?](.{0,64}?[^\r\n].{0,48})'
+    description: 'Looks like a secret key'
+    signatureid: '14-CONSUMER-SECRET'
+    enable: 0
+  -
+    part: PartContent
+    match: '(?i)(authorization[ \t]{0,64}[\=\:\?].{0,64}?[^\r\n].{0,32})'
+    description: 'Looks like a secret authorization value'
+    signatureid: '15-AUTH-SECRET'
+    enable: 0
+  -
+    part: PartContent
+    match: '(?i).*tps?://([^:\s/]*:[^@\s]*)@.*'
+    description: 'Looks like a secret in a URL'
+    signatureid: '16-SECRET-URL'
+    enable: 1
+  -
+    part: PartContent
+    match: '&?password=(.*)&?'
+    description: 'Looks like a secret in a URL'
+    signatureid: '17-SECRET-URL'
+    enable: 0
+  -
+    match: 'password=.*'
+    path: '.pypirc$'
+    description: 'Contains password of pip'
+    signatureid: '18-PYTHON'
+    enable: 1
+  -
+    match: '_auth.*'
+    path: '\.npmrc$'
+    description: 'Contains password of npmrc'
+    signatureid: '19-NPM'
+    enable: 1
+  -
+    match: '\W(xox[p|b|o|a]-[0-9]{1,}-[0-9]{12}-[0-9]{12}-[a-z0-9]{32})\W'
+    description: 'Contains Slack v2 token'
+    signatureid: '20-SLACK-V2'
+    enable: 1
+  -
+    match: '\W(xox[p|b|o|a]-[0-9]{1,}-[0-9]{1,}-[a-zA-Z0-9]{24})\W'
+    description: 'Contains Slack v1 token'
+    signatureid: '21-SLACK-V1'
+    enable: 1
+  -
+    match: '(AAAA[a-zA-Z0-9_-]{7}:[a-zA-Z0-9_-]{140})'
+    description: 'Contains FCM_SERVER_KEY'
+    signatureid: '22-FCM-V1'
+    enable: 1
+  -
+    match: 'AWS_SECRET\w*=(\S*)'
+    description: 'Contains AWS SECRET'
+    signatureid: '23-AWS-SECRET-V1'
+    severity: 10
+    enable: 1
+
+# TODO - Add these
+#  tokensList.append(Token('FACEBOOK', '\W([0-9a-f]{32})$'))
+#  tokensList.append(Token('GITHUB_CLIENT_SECRET', '[\W]{1,2}([a-f0-9]{40})[\W]{1,2}$'))
+#  tokensList.append(Token('GOOGLE_FIREBASE_OR_MAPS', '(AIza[0-9A-Za-z\\-_]{35})'))
+#  tokensList.append(Token('GOOGLE_OAUTH_ACCESS_TOKEN', '(ya29\\.[0-9A-Za-z\\-_]+)'))
+#  tokensList.append(Token('HEROKU', '(?:HEROKU_API_KEY|HEROKU_API_TOKEN|HEROKU_API_SECRET|heroku_api_key|heroku_api_token|heroku_api_secret|heroku_key|HEROKU_TOKEN|HEROKU_AUTH|heroku_auth|herokuAuth|heroku_auth_token)[\W|\s]{1,}([0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12})\W'))
+#  #   tokensList.append(Token('JSON_WEB_TOKEN', '(eyJ[a-zA-Z0-9]{10,}\.eyJ[a-zA-Z0-9]{10,}\.[a-zA-Z0-9_-]{10,})'))
+#  tokensList.append(Token('MAILCHIMP', '\W(?:[a-f0-9]{32}(-us[0-9]{1,2}))\W'))
+#  tokensList.append(Token('MAILGUN', '(key-[0-9a-f]{32})'))
+#  tokensList.append(Token('PAYPAL', '[\W]{1,2}([E][A-Z]{1}[a-zA-Z0-9_-]{78})[\W]{1,2}$'))
+#  tokensList.append(Token('SENDGRID_API_KEY', '(SG\.[a-zA-Z0-9-_]{22}\.[a-zA-Z0-9_-]{43})'))
+#  tokensList.append(Token('SQUARE_APP_SECRET', 'sq0[a-z]{3}-[0-9A-Za-z\-_]{43}'))
+#  tokensList.append(Token('SQUARE_PERSONAL_ACCESS_TOKEN', '\W(EAAA[a-zA-Z0-9_-]{60})\W'))
+#  tokensList.append(Token('STRIPE_LIVE_SECRET_KEY', '(sk_live_[0-9a-zA-Z]{24})'))
+#  tokensList.append(Token('STRIPE_LIVE_RESTRICTED_KEY', '(rk_live_[0-9a-zA-Z]{24,34})'))
+#  tokensList.append(Token('TWITTER', '[\W]{1,2}([a-zA-Z0-9]{50})[\W]{1,2}$'))
+#  tokensList.append(Token('TWILIO_API_KEY', 'SK[0-9a-fA-F]{32}'))
+#
+#  ## Tokens which need two keys to be interesting ##
+#
+#  googleSecret = Token('GOOGLE_SECRET', r'(\'|\"|\=)(?=(.*[0-9].*))(?=(.*[A-Z].*))(?=([0-9A-Za-z-_]{24})(\1|\'|\"|(\s*(\r\n|\r|\n))))(?!.*\1.*\1.*)(?=(.*[a-z].*))(.*)(\1|\'|\"|(\s*(\r\n|\r|\n)))', None, 2)
+#  googleUrl = Token('GOOGLE_URL', '([0-9]{12}-[a-z0-9]{32}.apps.googleusercontent.com)', None, 1)
+#  tokensCombo.append(TokenCombo('GOOGLE', [googleSecret, googleUrl]))
+#
+#  twilioSID = Token('TWILIO_SID', '(AC[a-f0-9]{32}[^a-f0-9])', None, 1)
+#  twilioAUTH = Token('TWILIO_AUTH', '\W[a-f0-9]{32}\W', None, 2)
+#  tokensCombo.append(TokenCombo('TWILIO', [twilioSID, twilioAUTH]))
