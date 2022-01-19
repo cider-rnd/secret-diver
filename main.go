@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 //go:embed settings.yaml
@@ -24,6 +25,7 @@ func main() {
 	generateSettings := flag.Bool("generate-settings", false, "generates default settings.yaml in current directory")
 	settingsfile := flag.String("settings", "./settings.yaml", "Image to scan")
 	humanize := flag.Bool("human", false, "Allows humans to use the tool")
+	skip_git := flag.Bool("skip-git", true, "Allows to scan git if you would like")
 	output := flag.String("output", "", "Output file")
 
 	flag.Parse()
@@ -59,7 +61,7 @@ func main() {
 
 	signatures := secret.LoadSignatures(bytes, 0)
 
-	_ = scanFull(imageScan, signatures, run)
+	_ = scanFull(imageScan, signatures, run, *skip_git)
 
 	if *humanize {
 		HumanWrite(report, outFile)
@@ -68,7 +70,7 @@ func main() {
 	}
 }
 
-func scanFull(imageScan *string, signatures []secret.Signature, run *sarif.Run) error {
+func scanFull(imageScan *string, signatures []secret.Signature, run *sarif.Run, skip_git bool) error {
 	theSource, cleanup, err := source.New(*imageScan, nil)
 	if err != nil {
 		return err
@@ -79,6 +81,10 @@ func scanFull(imageScan *string, signatures []secret.Signature, run *sarif.Run) 
 
 	for _, file := range files {
 		path := string(file.Reference.RealPath)
+
+		if skip_git && strings.HasPrefix(path, ".git/") {
+			continue
+		}
 
 		contents, err := ioutil.ReadAll(file.Reader)
 
