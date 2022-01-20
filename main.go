@@ -82,7 +82,7 @@ func scanFull(imageScan *string, signatures []secret.Signature, run *sarif.Run, 
 	for _, file := range files {
 		path := string(file.Reference.RealPath)
 
-		if skip_git && strings.HasPrefix(path, ".git/") {
+		if skip_git && (strings.HasPrefix(path, ".git/") || strings.Contains(path, "/.git/")) {
 			continue
 		}
 
