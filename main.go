@@ -2,6 +2,7 @@ package main
 
 import (
 	_ "embed"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/anchore/stereoscope/pkg/file"
@@ -23,9 +24,10 @@ func main() {
 
 	imageScan := flag.String("image", "", "Image to scan")
 	generateSettings := flag.Bool("generate-settings", false, "generates default settings.yaml in current directory")
-	settingsfile := flag.String("settings", "./settings.yaml", "Image to scan")
+	settingsFile := flag.String("settings", "./settings.yaml", "Image to scan")
 	humanize := flag.Bool("human", false, "Allows humans to use the tool")
-	skip_git := flag.Bool("skip-git", true, "Allows to scan git if you would like")
+	skipGit := flag.Bool("skip-git", true, "Allows to scan git if you would like")
+	showSecrets := flag.Bool("show-secrets", true, "Shows secrets")
 	output := flag.String("output", "", "Output file")
 
 	flag.Parse()
@@ -51,26 +53,35 @@ func main() {
 	}
 
 	report, err := sarif.New(sarif.Version210)
-	run := sarif.NewRun("secret-docker", "")
+	run := sarif.NewRun("secret-diver", "")
 	report.AddRun(run)
 
-	bytes, err := ioutil.ReadFile(*settingsfile)
+	bytes, err := ioutil.ReadFile(*settingsFile)
 	if err != nil {
 		bytes = defaultConfig
 	}
 
 	signatures := secret.LoadSignatures(bytes, 0)
 
-	_ = scanFull(imageScan, signatures, run, *skip_git)
+	_ = scanFull(imageScan, signatures, run, *skipGit, *showSecrets)
 
 	if *humanize {
 		HumanWrite(report, outFile)
 	} else {
-		_ = report.PrettyWrite(outFile)
+		_ = PrettyWrite(report, outFile)
 	}
 }
 
-func scanFull(imageScan *string, signatures []secret.Signature, run *sarif.Run, skip_git bool) error {
+func PrettyWrite(sarif *sarif.Report, w io.Writer) error {
+	enc := json.NewEncoder(w)
+
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	err := enc.Encode(sarif)
+	return err
+}
+
+func scanFull(imageScan *string, signatures map[string]secret.Signature, run *sarif.Run, skip_git bool, show_secrets bool) error {
 	theSource, cleanup, err := source.New(*imageScan, nil)
 	if err != nil {
 		return err
@@ -79,23 +90,38 @@ func scanFull(imageScan *string, signatures []secret.Signature, run *sarif.Run, 
 
 	files := parseImage(theSource)
 
-	for _, file := range files {
-		path := string(file.Reference.RealPath)
+	for _, f := range files {
+		path := string(f.Reference.RealPath)
 
 		if skip_git && (strings.HasPrefix(path, ".git/") || strings.Contains(path, "/.git/")) {
 			continue
 		}
 
-		contents, err := ioutil.ReadAll(file.Reader)
+		contents, err := ioutil.ReadAll(f.Reader)
 
 		kind, _ := filetype.Match(contents)
 		if err == nil {
 			for _, signature := range signatures {
-				results := signature.Check(path, kind, contents)
+				results := signature.Check(path, kind, contents, show_secrets)
 				run.Results = append(run.Results, results...)
 			}
 		}
 	}
+
+	rulesFound := make(map[string]bool)
+	for _, result := range run.Results {
+		rulesFound[*result.RuleID] = true
+	}
+
+	for rule := range rulesFound {
+		fullDescription := "Found by pattern ==> " + signatures[rule].SignaturePattern().String()
+		run.Tool.Driver.Rules = append(run.Tool.Driver.Rules, &sarif.Rule{
+			ID:               rule,
+			ShortDescription: sarif.NewMultiformatMessageString(*signatures[rule].Description()),
+			FullDescription:  sarif.NewMultiformatMessageString(fullDescription),
+		})
+	}
+
 	return nil
 }
 
@@ -114,7 +140,6 @@ func HumanWrite(report *sarif.Report, w io.Writer) {
 
 				for _, a := range result.Message.Arguments {
 					fmt.Fprintf(w, "*****\n%s\n*****\n\n", a)
-
 				}
 			}
 		}

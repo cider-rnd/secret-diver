@@ -23,8 +23,9 @@ Signatures:
     severity: 1
   -
     match: '(?msi)-----BEGIN [A-Z ]*PRIVATE KEY[^-]*-----'
+    name: 'PEM private key'
     description: 'Contains a private key'
-    signatureid: '2-PRIVATE'
+    signatureid: '2-PEM-PRIVATE'
     enable: 1
     severity: 10
   -
@@ -105,13 +106,13 @@ Signatures:
     signatureid: '17-SECRET-URL'
     enable: 0
   -
-    match: 'password=.*'
+    match: 'password=(.*)'
     path: '.pypirc$'
     description: 'Contains password of pip'
     signatureid: '18-PYTHON'
     enable: 1
   -
-    match: '_auth.*'
+    match: '_auth(.*)'
     path: '\.npmrc$'
     description: 'Contains password of npmrc'
     signatureid: '19-NPM'

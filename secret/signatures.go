@@ -1,6 +1,8 @@
 package secret
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"github.com/h2non/filetype/types"
 	"github.com/owenrumney/go-sarif/sarif"
 	"gopkg.in/yaml.v2"
@@ -12,7 +14,7 @@ import (
 )
 
 // Signatures holds a list of all signatures used during the session
-var Signatures []Signature
+var Signatures = make(map[string]Signature)
 var FalsePositives []regexp.Regexp
 var IgnoreList []regexp.Regexp
 
@@ -50,7 +52,8 @@ type Signature interface {
 	Enable() int
 	ConfidenceLevel() int
 	SignatureID() *string
-	Check(path string, kind types.Type, contents []byte) []*sarif.Result
+	Check(path string, kind types.Type, contents []byte, showSecrets bool) []*sarif.Result
+	SignaturePattern() *regexp.Regexp
 }
 
 // SignaturesMetaData is used by updateSignatures to determine if/how to update the signatures
@@ -133,7 +136,12 @@ func (s PatternSignature) SignatureID() *string {
 	return &s.signatureid
 }
 
-func (s PatternSignature) Check(path string, kind types.Type, contents []byte) []*sarif.Result {
+// SignaturePattern gets the pattern of the signature
+func (s PatternSignature) SignaturePattern() *regexp.Regexp {
+	return s.match
+}
+
+func (s PatternSignature) Check(path string, kind types.Type, contents []byte, showSecrets bool) []*sarif.Result {
 
 	var results []*sarif.Result
 
@@ -154,7 +162,7 @@ func (s PatternSignature) Check(path string, kind types.Type, contents []byte) [
 		}
 	}
 
-	matches := s.match.FindAllIndex(contents, -1)
+	matches := s.match.FindAllSubmatchIndex(contents, -1)
 	if len(matches) > 0 {
 
 		lines := make(map[int]int)
@@ -185,6 +193,9 @@ func (s PatternSignature) Check(path string, kind types.Type, contents []byte) [
 			startLine := lines[keys[0]] + 1
 
 			secret := contents[match[0]:match[1]]
+			if len(match) > 2 {
+				secret = contents[match[2]:match[3]]
+			}
 
 			physical := sarif.NewPhysicalLocation()
 			physical.ArtifactLocation = sarif.NewSimpleArtifactLocation(path)
@@ -192,15 +203,28 @@ func (s PatternSignature) Check(path string, kind types.Type, contents []byte) [
 			physical.Region.StartLine = &startLine
 			location := sarif.NewLocationWithPhysicalLocation(physical)
 
+			var arguments []string
+
+			if showSecrets == true {
+				arguments = []string{
+					string(secret),
+				}
+			}
+
+			var partialFingerprints = make(map[string]interface{})
+
+			h := sha256.New()
+			h.Write(secret)
+			partialFingerprints["SECRET_FINGERPRINT_SHA256"] = hex.EncodeToString(h.Sum(nil))
+
 			result := sarif.Result{
 				RuleID: s.SignatureID(),
 				Message: sarif.Message{
-					Text: s.Description(),
-					Arguments: []string{
-						string(secret),
-					},
+					Text:      s.Description(),
+					Arguments: arguments,
 				},
-				Locations: []*sarif.Location{location},
+				Locations:           []*sarif.Location{location},
+				PartialFingerprints: partialFingerprints,
 			}
 
 			isValid := true
@@ -221,9 +245,9 @@ func (s PatternSignature) Check(path string, kind types.Type, contents []byte) [
 }
 
 // LoadSignatures will load all known signatures for the various match types into the session
-func LoadSignatures(content []byte, mLevel int) []Signature {
+func LoadSignatures(content []byte, mLevel int) map[string]Signature {
 
-	if Signatures != nil {
+	if len(Signatures) != 0 {
 		return Signatures
 	}
 	// ensure that we have the proper home directory
@@ -251,7 +275,7 @@ func LoadSignatures(content []byte, mLevel int) []Signature {
 				path = regexp.MustCompile(curSig.Path)
 			}
 
-			Signatures = append(Signatures, PatternSignature{
+			Signatures[curSig.SignatureID] = PatternSignature{
 				curSig.Comment,
 				curSig.Description,
 				curSig.Enable,
@@ -260,7 +284,7 @@ func LoadSignatures(content []byte, mLevel int) []Signature {
 				curSig.ConfidenceLevel,
 				path,
 				curSig.SignatureID,
-			})
+			}
 		}
 	}
 
