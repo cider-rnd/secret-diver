@@ -30,6 +30,9 @@ func main() {
 	showSecrets := flag.Bool("show-secrets", true, "Shows secrets")
 	output := flag.String("output", "", "Output file")
 
+	secretSanitizerCharacter := flag.String("secret-char", "*", "Secret character to sanitize")
+	secretSanitizerRatio := flag.Float64("secret-ratio", 0.7, "Ratio which to mark secrets as false positive")
+
 	flag.Parse()
 
 	if *generateSettings {
@@ -63,7 +66,7 @@ func main() {
 
 	signatures := secret.LoadSignatures(bytes, 0)
 
-	_ = scanFull(imageScan, signatures, run, *skipGit, *showSecrets)
+	_ = scanFull(imageScan, signatures, run, *skipGit, *showSecrets, *secretSanitizerCharacter, *secretSanitizerRatio)
 
 	if *humanize {
 		HumanWrite(report, outFile)
@@ -81,7 +84,7 @@ func PrettyWrite(sarif *sarif.Report, w io.Writer) error {
 	return err
 }
 
-func scanFull(imageScan *string, signatures map[string]secret.Signature, run *sarif.Run, skip_git bool, show_secrets bool) error {
+func scanFull(imageScan *string, signatures map[string]secret.Signature, run *sarif.Run, skipGit bool, showSecrets bool, secretChar string, secretRatio float64) error {
 	theSource, cleanup, err := source.New(*imageScan, nil)
 	if err != nil {
 		return err
@@ -93,7 +96,7 @@ func scanFull(imageScan *string, signatures map[string]secret.Signature, run *sa
 	for _, f := range files {
 		path := string(f.Reference.RealPath)
 
-		if skip_git && (strings.HasPrefix(path, ".git/") || strings.Contains(path, "/.git/")) {
+		if skipGit && (strings.HasPrefix(path, ".git/") || strings.Contains(path, "/.git/")) {
 			continue
 		}
 
@@ -102,7 +105,7 @@ func scanFull(imageScan *string, signatures map[string]secret.Signature, run *sa
 		kind, _ := filetype.Match(contents)
 		if err == nil {
 			for _, signature := range signatures {
-				results := signature.Check(path, kind, contents, show_secrets)
+				results := signature.Check(path, kind, contents, showSecrets, secretChar, secretRatio)
 				run.Results = append(run.Results, results...)
 			}
 		}

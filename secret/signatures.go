@@ -1,6 +1,7 @@
 package secret
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"github.com/h2non/filetype/types"
@@ -9,7 +10,6 @@ import (
 	"math"
 	"os"
 	"regexp"
-	"sort"
 	"strings"
 )
 
@@ -52,7 +52,7 @@ type Signature interface {
 	Enable() int
 	ConfidenceLevel() int
 	SignatureID() *string
-	Check(path string, kind types.Type, contents []byte, showSecrets bool) []*sarif.Result
+	Check(path string, kind types.Type, contents []byte, showSecrets bool, secretChar string, secretRatio float64) []*sarif.Result
 	SignaturePattern() *regexp.Regexp
 }
 
@@ -141,7 +141,7 @@ func (s PatternSignature) SignaturePattern() *regexp.Regexp {
 	return s.match
 }
 
-func (s PatternSignature) Check(path string, kind types.Type, contents []byte, showSecrets bool) []*sarif.Result {
+func (s PatternSignature) Check(path string, kind types.Type, contents []byte, showSecrets bool, secretChar string, secretRatio float64) []*sarif.Result {
 
 	var results []*sarif.Result
 
@@ -164,38 +164,22 @@ func (s PatternSignature) Check(path string, kind types.Type, contents []byte, s
 
 	matches := s.match.FindAllSubmatchIndex(contents, -1)
 	if len(matches) > 0 {
-
-		lines := make(map[int]int)
-
-		line := 0
-		for i, b := range contents {
-			if b == '\n' {
-				lines[i] = line
-				line++
-			}
-		}
-
-		keys := make([]int, 0, len(lines))
-		for k := range lines {
-			keys = append(keys, k)
-		}
-		sort.Ints(keys)
-
 		for _, match := range matches {
 
-			for len(keys) > 0 {
-				if match[0] < keys[0] {
-					break
-				}
-				keys = keys[1:]
-			}
-
-			startLine := lines[keys[0]] + 1
-
-			secret := contents[match[0]:match[1]]
+			matchPos := 0
 			if len(match) > 2 {
-				secret = contents[match[2]:match[3]]
+				matchPos = 2
 			}
+
+			startPos := match[matchPos]
+			endPos := match[matchPos+1]
+
+			secret := contents[startPos:endPos]
+
+			if !isValidSecret(secret, secretChar, secretRatio) {
+				continue
+			}
+			startLine := bytes.Count(contents[:startPos], []byte{'\n'}) + 1
 
 			physical := sarif.NewPhysicalLocation()
 			physical.ArtifactLocation = sarif.NewSimpleArtifactLocation(path)
@@ -242,6 +226,26 @@ func (s PatternSignature) Check(path string, kind types.Type, contents []byte, s
 	}
 
 	return results
+}
+
+func isValidSecret(secret []byte, secretChar string, secretRatio float64) bool {
+
+	totalCount := len(secret)
+	counter := make(map[string]int)
+	for _, c := range secret {
+		counter[string(c)]++
+	}
+
+	for chr := range counter {
+		if chr == secretChar {
+			ratio := float64(counter[chr]) / float64(totalCount)
+			if ratio > secretRatio {
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 // LoadSignatures will load all known signatures for the various match types into the session
