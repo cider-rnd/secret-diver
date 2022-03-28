@@ -138,6 +138,20 @@ Signatures:
     signatureid: '23-AWS-SECRET-V1'
     severity: 10
     enable: 1
+  -
+    match: '(?i)authorization:\s+\w+\s+(\w{40})'
+    name: 'Authorization'
+    description: 'Authorization'
+    signatureid: '24-HTTP-AUTH'
+    enable: 1
+    severity: 7
+  -
+    match: '(?i)jdbc:\w+:\/\/\S*?Password=(\S*?)[;"''\s]'
+    name: 'JDBC password'
+    description: 'JDBC password found'
+    signatureid: '25-JDBC-PASSWORD'
+    enable: 1
+    severity: 8
 
 # TODO - Add these
 #  tokensList.append(Token('FACEBOOK', '\W([0-9a-f]{32})$'))
