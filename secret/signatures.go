@@ -212,12 +212,13 @@ func (s PatternSignature) Check(path string, kind types.Type, contents []byte, s
 			}
 
 			isValid := true
-			//for _, fp := range FalsePositives {
-			//	if fp.Match(match) {
-			//		isValid = false
-			//		break
-			//	}
-			//}
+
+			for _, fp := range FalsePositives {
+				if fp.Match(secret) {
+					isValid = false
+					break
+				}
+			}
 
 			if isValid {
 				results = append(results, &result)
