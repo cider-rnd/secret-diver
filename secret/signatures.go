@@ -4,13 +4,15 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"github.com/h2non/filetype/types"
-	"github.com/owenrumney/go-sarif/sarif"
-	"gopkg.in/yaml.v2"
+	"encoding/json"
 	"math"
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/h2non/filetype/types"
+	"github.com/owenrumney/go-sarif/sarif"
+	"gopkg.in/yaml.v2"
 )
 
 // Signatures holds a list of all signatures used during the session
@@ -19,9 +21,14 @@ var FalsePositives []regexp.Regexp
 var IgnoreList []regexp.Regexp
 
 // loadSignatureSet will read in the defined signatures from an external source
-func loadSignatureSet(content []byte) (SignatureConfig, error) {
+func loadSignatureSet(content []byte, loadFromConfig bool) (SignatureConfig, error) {
 
 	var c SignatureConfig
+
+	if !loadFromConfig {
+		return c, nil
+	}
+
 	err := yaml.Unmarshal(content, &c)
 	if err != nil {
 		return SignatureConfig{}, err
@@ -77,15 +84,15 @@ type PatternSignature struct {
 
 // SignatureDef maps to a signature within the yaml file
 type SignatureDef struct {
-	Comment         string  `yaml:"comment"`
-	Description     string  `yaml:"description"`
-	Enable          int     `yaml:"enable"`
-	Entropy         float64 `yaml:"entropy"`
-	Match           string  `yaml:"match"`
-	ConfidenceLevel int     `yaml:"confidence-level"`
-	Severity        int     `yaml:"severity"`
-	Path            string  `yaml:"path"`
-	SignatureID     string  `yaml:"signatureid"`
+	Comment         string  `yaml:"comment" json:"comment"`
+	Description     string  `yaml:"description" json:"description"`
+	Enable          int     `yaml:"enable" json:"enable"`
+	Entropy         float64 `yaml:"entropy" json:"entropy"`
+	Match           string  `yaml:"match" json:"match"`
+	ConfidenceLevel int     `yaml:"confidence-level" json:"confidence-level"`
+	Severity        int     `yaml:"severity" json:"severity"`
+	Path            string  `yaml:"path" json:"path"`
+	SignatureID     string  `yaml:"signatureid" json:"signatureid"`
 }
 
 // SignatureConfig holds the base file structure for the signatures file
@@ -250,17 +257,21 @@ func isValidSecret(secret []byte, secretChar string, secretRatio float64) bool {
 }
 
 // LoadSignatures will load all known signatures for the various match types into the session
-func LoadSignatures(content []byte, mLevel int) map[string]Signature {
+func LoadSignatures(content []byte, mLevel int, loadFromConfig bool) map[string]Signature {
 
 	if len(Signatures) != 0 {
 		return Signatures
 	}
 	// ensure that we have the proper home directory
 
-	c, err := loadSignatureSet(content)
+	var sig_def_arr []SignatureDef = loadSignatureFromEnv()
+	var c SignatureConfig
+
+	c, err := loadSignatureSet(content, loadFromConfig)
 	if err != nil {
 		os.Exit(2)
 	}
+	c.Signatures = append(c.Signatures, sig_def_arr...)
 
 	for _, i := range c.Ignore {
 		r := regexp.MustCompile(i)
@@ -294,4 +305,29 @@ func LoadSignatures(content []byte, mLevel int) map[string]Signature {
 	}
 
 	return Signatures
+}
+
+// loadSignatureFromEnv will load all environment variables that starts with : "SECRET_"
+func loadSignatureFromEnv() []SignatureDef {
+
+	var sig_def_arr []SignatureDef
+
+	for _, e := range os.Environ() { // Iterating over all environment variables.
+		pair := strings.SplitN(e, "=", 2)
+		var name, value string = pair[0], pair[1] // name of the variable, value
+
+		if strings.HasPrefix(name, "SECRET_") {
+			// var id string = strings.Trim(name, "SECRET_")
+
+			var c SignatureDef
+			var byte_value []byte = []byte(value)
+			err := json.Unmarshal(byte_value, &c)
+
+			if err != nil {
+				return []SignatureDef{}
+			}
+			sig_def_arr = append(sig_def_arr, c)
+		}
+	}
+	return sig_def_arr
 }

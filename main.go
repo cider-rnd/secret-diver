@@ -5,16 +5,17 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/anchore/stereoscope/pkg/file"
-	"github.com/anchore/syft/syft/source"
-	"github.com/cider-rnd/secret-diver/secret"
-	"github.com/h2non/filetype"
-	"github.com/owenrumney/go-sarif/sarif"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/anchore/stereoscope/pkg/file"
+	"github.com/anchore/syft/syft/source"
+	"github.com/cider-rnd/secret-diver/secret"
+	"github.com/h2non/filetype"
+	"github.com/owenrumney/go-sarif/sarif"
 )
 
 //go:embed settings.yaml
@@ -29,6 +30,7 @@ func main() {
 	skipGit := flag.Bool("skip-git", true, "Allows to scan git if you would like")
 	showSecrets := flag.Bool("show-secrets", true, "Shows secrets")
 	output := flag.String("output", "", "Output file")
+	loadFromConfig := flag.Bool("load-config-sig", true, "Load signatures from config")
 
 	secretSanitizerCharacter := flag.String("secret-char", "*", "Secret character to sanitize")
 	secretSanitizerRatio := flag.Float64("secret-ratio", 0.7, "Ratio which to mark secrets as false positive")
@@ -64,7 +66,7 @@ func main() {
 		bytes = defaultConfig
 	}
 
-	signatures := secret.LoadSignatures(bytes, 0)
+	signatures := secret.LoadSignatures(bytes, 0, *loadFromConfig)
 
 	_ = scanFull(imageScan, signatures, run, *skipGit, *showSecrets, *secretSanitizerCharacter, *secretSanitizerRatio)
 
