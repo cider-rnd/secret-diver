@@ -264,14 +264,15 @@ func LoadSignatures(content []byte, mLevel int, loadFromConfig bool) map[string]
 	}
 	// ensure that we have the proper home directory
 
-	var sig_def_arr []SignatureDef = loadSignatureFromEnv()
+	var sigDefArr = loadSignatureFromEnv()
 	var c SignatureConfig
 
 	c, err := loadSignatureSet(content, loadFromConfig)
 	if err != nil {
 		os.Exit(2)
 	}
-	c.Signatures = append(c.Signatures, sig_def_arr...)
+
+	c.Signatures = append(c.Signatures, sigDefArr...)
 
 	for _, i := range c.Ignore {
 		r := regexp.MustCompile(i)
@@ -303,7 +304,6 @@ func LoadSignatures(content []byte, mLevel int, loadFromConfig bool) map[string]
 			}
 		}
 	}
-
 	return Signatures
 }
 
@@ -314,13 +314,13 @@ func loadSignatureFromEnv() []SignatureDef {
 
 	for _, e := range os.Environ() { // Iterating over all environment variables.
 		pair := strings.SplitN(e, "=", 2)
-		var name, value string = pair[0], pair[1] // name of the variable, value
+		var name, value = pair[0], pair[1] // name of the variable, value
 
 		if strings.HasPrefix(name, "SECRET_") {
 			// var id string = strings.Trim(name, "SECRET_")
 
 			var c SignatureDef
-			var byte_value []byte = []byte(value)
+			var byte_value = []byte(value)
 			err := json.Unmarshal(byte_value, &c)
 
 			if err != nil {
