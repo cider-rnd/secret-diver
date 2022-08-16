@@ -95,7 +95,7 @@ Signatures:
     enable: 0
   -
     part: PartContent
-    match: '(?i).*tps?://([^:\s/]*:[^@\s]*)@.*'
+    match: '(?i).*tps?://([^:\s/]*:[^@\s/]*)@.*'
     description: 'Looks like a secret in a URL'
     signatureid: '16-SECRET-URL'
     enable: 1
