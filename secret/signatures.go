@@ -73,7 +73,7 @@ type SignaturesMetaData struct {
 // PatternSignature holds the information about a pattern signature which is a regex used to match content within a file
 type PatternSignature struct {
 	comment         string
-	severity        int
+	severity        float64
 	description     string
 	enable          int
 	entropy         float64
@@ -91,15 +91,15 @@ type SignatureDef struct {
 	Entropy         float64 `yaml:"entropy" json:"entropy"`
 	Match           string  `yaml:"match" json:"match"`
 	ConfidenceLevel int     `yaml:"confidence-level" json:"confidence-level"`
-	Severity        int     `yaml:"severity" json:"severity"`
+	Severity        float64 `json:"severity,string"`
 	Path            string  `yaml:"path" json:"path"`
 	SignatureID     string  `yaml:"signatureid" json:"signatureid"`
 }
 
 type SecretConfig struct {
-	Name     string `yaml:"name" json:"name"`
-	Regex    string `yaml:"regex" json:"regex"`
-	Severity int    `yaml:"severity" json:"severity"`
+	Name     string  `yaml:"name" json:"name"`
+	Regex    string  `yaml:"regex" json:"regex"`
+	Severity float64 `yaml:"severity" json:"severity,string"`
 }
 
 // SignatureConfig holds the base file structure for the signatures file
