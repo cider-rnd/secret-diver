@@ -95,6 +95,11 @@ type SignatureDef struct {
 	SignatureID     string  `yaml:"signatureid" json:"signatureid"`
 }
 
+type SecretConfig struct {
+	Name  string `yaml:"name" json:"name"`
+	Regex string `yaml:"regex" json:"regex"`
+}
+
 // SignatureConfig holds the base file structure for the signatures file
 type SignatureConfig struct {
 	Meta   SignaturesMetaData `yaml:"Meta"`
@@ -310,23 +315,41 @@ func LoadSignatures(content []byte, mLevel int, loadFromConfig bool) map[string]
 // loadSignatureFromEnv will load all environment variables that starts with : "SECRET_"
 func loadSignatureFromEnv() []SignatureDef {
 
+	reg, err := regexp.Compile("[^a-zA-Z0-9]+")
+	if err != nil {
+		return nil
+	}
+
 	var sig_def_arr []SignatureDef
 
 	for _, e := range os.Environ() { // Iterating over all environment variables.
 		pair := strings.SplitN(e, "=", 2)
 		var name, value = pair[0], pair[1] // name of the variable, value
 
-		if strings.HasPrefix(name, "SECRET_") {
+		if name == "SECRET_CONFIG" {
+			var secretConfig []SecretConfig
+
+			err := json.Unmarshal([]byte(value), &secretConfig)
+			if err == nil {
+				for _, config := range secretConfig {
+					sig_def_arr = append(sig_def_arr, SignatureDef{
+						Description: config.Name,
+						Match:       config.Regex,
+						Enable:      1,
+						SignatureID: "CUSTOM-" + strings.ToUpper(reg.ReplaceAllString(config.Name, "")),
+					})
+				}
+			}
+		} else if strings.HasPrefix(name, "SECRET_") {
 			// var id string = strings.Trim(name, "SECRET_")
 
 			var c SignatureDef
 			var byte_value = []byte(value)
 			err := json.Unmarshal(byte_value, &c)
 
-			if err != nil {
-				return []SignatureDef{}
+			if err == nil {
+				sig_def_arr = append(sig_def_arr, c)
 			}
-			sig_def_arr = append(sig_def_arr, c)
 		}
 	}
 	return sig_def_arr
