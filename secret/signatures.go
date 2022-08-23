@@ -73,6 +73,7 @@ type SignaturesMetaData struct {
 // PatternSignature holds the information about a pattern signature which is a regex used to match content within a file
 type PatternSignature struct {
 	comment         string
+	severity        int
 	description     string
 	enable          int
 	entropy         float64
@@ -96,8 +97,9 @@ type SignatureDef struct {
 }
 
 type SecretConfig struct {
-	Name  string `yaml:"name" json:"name"`
-	Regex string `yaml:"regex" json:"regex"`
+	Name     string `yaml:"name" json:"name"`
+	Regex    string `yaml:"regex" json:"regex"`
+	Severity int    `yaml:"severity" json:"severity"`
 }
 
 // SignatureConfig holds the base file structure for the signatures file
@@ -213,8 +215,25 @@ func (s PatternSignature) Check(path string, kind types.Type, contents []byte, s
 			h.Write(secret)
 			partialFingerprints["SECRET_FINGERPRINT_SHA256"] = hex.EncodeToString(h.Sum(nil))
 
+			properties := sarif.NewPropertyBag()
+
+			severity := "medium"
+			if s.severity == 0 {
+				severity = "medium"
+			} else if s.severity < 4 {
+				severity = "low"
+			} else if s.severity < 7 {
+				severity = "medium"
+			} else if s.severity < 9 {
+				severity = "high"
+			} else if s.severity <= 10 {
+				severity = "critical"
+			}
+
+			properties.AddString("severity", severity)
 			result := sarif.Result{
-				RuleID: s.SignatureID(),
+				RuleID:      s.SignatureID(),
+				PropertyBag: *properties,
 				Message: sarif.Message{
 					Text:      s.Description(),
 					Arguments: arguments,
@@ -298,7 +317,9 @@ func LoadSignatures(content []byte, mLevel int, loadFromConfig bool) map[string]
 			}
 
 			Signatures[curSig.SignatureID] = PatternSignature{
+
 				curSig.Comment,
+				curSig.Severity,
 				curSig.Description,
 				curSig.Enable,
 				curSig.Entropy,
@@ -336,6 +357,7 @@ func loadSignatureFromEnv() []SignatureDef {
 						Description: config.Name,
 						Match:       config.Regex,
 						Enable:      1,
+						Severity:    config.Severity,
 						SignatureID: "CUSTOM-" + strings.ToUpper(reg.ReplaceAllString(config.Name, "")),
 					})
 				}
