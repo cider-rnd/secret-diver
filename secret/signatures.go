@@ -293,7 +293,7 @@ func LoadSignatures(content []byte, mLevel int, loadFromConfig bool) map[string]
 
 	c, err := loadSignatureSet(content, loadFromConfig)
 	if err != nil {
-		os.Exit(2)
+		panic("Was not able to load signature set")
 	}
 
 	c.Signatures = append(c.Signatures, sigDefArr...)
