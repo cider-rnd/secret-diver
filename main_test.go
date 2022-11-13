@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/cider-rnd/secret-diver/secret"
-	"github.com/owenrumney/go-sarif/sarif"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/cider-rnd/secret-diver/secret"
+	"github.com/owenrumney/go-sarif/sarif"
 )
 
 func isError(err error, t *testing.T) {
@@ -15,6 +16,7 @@ func isError(err error, t *testing.T) {
 }
 
 func Test_scanFull(t *testing.T) {
+
 	err1 := os.Setenv("SECRET_1", "{\"match\":\"TEST(.*)\",\"name\":\"TEST\",\"description\":\"TEST\",\"signatureid\":\"TEST\",\"enable\":1,\"severity\":1, \"comment\":\"TEST\", \"entropy\":1}")
 	isError(err1, t)
 
@@ -29,10 +31,10 @@ func Test_scanFull(t *testing.T) {
 
 	bytes, err := ioutil.ReadFile("./settings.yaml")
 	if err != nil {
-		bytes = defaultConfig
+		t.Errorf("Test is unable to find settings.yaml")
 	}
 
-	signatures := secret.LoadSignatures(bytes, 0, false)
+	signatures := secret.LoadSignatures(bytes, 0, true)
 
 	run := sarif.NewRun("secret-diver", "")
 

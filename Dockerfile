@@ -1,19 +1,15 @@
-FROM golang:1.17.2-alpine3.13 as builder
-
-#RUN apk update
-RUN apk add git make build-base
-
-ADD . /src/secret-diver
+FROM golang:1.18-alpine as builder
 
 WORKDIR /src/secret-diver
 
-RUN make build
+ADD . .
 
-RUN chmod +x /src/secret-diver/secret-diver
+RUN go build
 
-FROM alpine
+FROM alpine:latest
+
 COPY --from=builder /src/secret-diver/secret-diver /go/bin/secret-diver
 
-WORKDIR /_cider_src_
-CMD ["-image", "dir:/_cider_src_"]
+WORKDIR /opt
+
 ENTRYPOINT ["/go/bin/secret-diver"]

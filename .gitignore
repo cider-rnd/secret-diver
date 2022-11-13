@@ -28,3 +28,4 @@
 .idea
 secret-diver
 /.vscode
+.devcontainer
